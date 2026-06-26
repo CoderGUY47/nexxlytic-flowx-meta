@@ -21,6 +21,7 @@
     { "src": "/webhook", "dest": "backend/src/server.js" },
     { "src": "/health", "dest": "backend/src/server.js" },
     { "src": "/vr-promo.png", "dest": "backend/src/server.js" },
+    { "src": "/([^\\.]*)", "dest": "frontend/index.html" },
     { "src": "/(.*)", "dest": "frontend/$1" }
   ]
 }
