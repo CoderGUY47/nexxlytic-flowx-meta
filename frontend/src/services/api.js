@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
-  timeout: 15000,
+  timeout: 30000, // 30s for Vercel cold starts
 });
 
 // Attach JWT token to every request
