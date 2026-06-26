@@ -1,15 +1,27 @@
 {
-  "experimentalServices": {
-    "frontend": {
-      "entrypoint": "frontend",
-      "routePrefix": "/",
-      "framework": "create-react-app"
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
     },
-    "backend": {
-      "entrypoint": "backend/src/server.js",
-      "builder": "@vercel/node",
-      "routePrefix": "/api"
+    {
+      "src": "backend/src/server.js",
+      "use": "@vercel/node"
     }
-  }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/src/server.js" },
+    { "src": "/meta/(.*)", "dest": "backend/src/server.js" },
+    { "src": "/webhook/(.*)", "dest": "backend/src/server.js" },
+    { "src": "/meta", "dest": "backend/src/server.js" },
+    { "src": "/webhook", "dest": "backend/src/server.js" },
+    { "src": "/health", "dest": "backend/src/server.js" },
+    { "src": "/(.*)", "dest": "frontend/$1" }
+  ]
 }
+
 
