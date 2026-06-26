@@ -290,7 +290,6 @@ export default function Inbox() {
 
   const deleteContact = async (e, contactId) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this contact and all their messages?')) return;
     setDeletingId(contactId);
     try {
       await contactsAPI.delete(contactId);
@@ -443,29 +442,31 @@ export default function Inbox() {
                 <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 20, background: platColor(c.platform) + '20', color: platColor(c.platform), fontWeight: 600 }}>
                   {c.platform?.toUpperCase().slice(0,2)}
                 </span>
-                {/* Delete icon — visible on hover */}
-                <button
-                  onClick={(e) => deleteContact(e, c.id)}
-                  title="Delete contact"
-                  disabled={deletingId === c.id}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: deletingId === c.id ? 'wait' : 'pointer',
-                    padding: '2px 4px',
-                    borderRadius: 4,
-                    lineHeight: 1,
-                    display: hoveredContactId === c.id ? 'flex' : 'none',
-                    color: '#ef4444',
-                    fontSize: 13,
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  {deletingId === c.id ? '⏳' : '🗑️'}
-                </button>
+                 {/* Delete icon — visible on hover and touch */}
+                 <button
+                   onClick={(e) => deleteContact(e, c.id)}
+                   title="Delete contact"
+                   disabled={deletingId === c.id}
+                   style={{
+                     background: 'none',
+                     border: 'none',
+                     cursor: deletingId === c.id ? 'wait' : 'pointer',
+                     padding: '2px 4px',
+                     borderRadius: 4,
+                     lineHeight: 1,
+                     display: 'flex',
+                     opacity: hoveredContactId === c.id ? 1 : 0.3,
+                     transition: 'opacity 0.2s',
+                     color: '#ef4444',
+                     fontSize: 13,
+                     alignItems: 'center',
+                     justifyContent: 'center'
+                   }}
+                   onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                 >
+                   {deletingId === c.id ? '⏳' : '🗑️'}
+                 </button>
               </div>
             </div>
             <div style={{ fontSize: 11, color: '#8892a4', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
