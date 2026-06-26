@@ -40,7 +40,7 @@ router.get('/platform', async (req, res) => {
   try {
     const { client_id } = req.query;
     const [rows] = await db.query(
-      'SELECT platform, COUNT(*) as count FROM messages WHERE client_id=? AND direction="outbound" GROUP BY platform',
+      "SELECT platform, COUNT(*) as count FROM messages WHERE client_id=? AND direction='outbound' GROUP BY platform",
       [client_id]
     );
     res.json({ success: true, data: rows });
