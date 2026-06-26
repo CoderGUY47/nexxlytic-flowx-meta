@@ -16,7 +16,8 @@ const auth = async (req, res, next) => {
     req.user = rows[0];
     next();
   } catch (err) {
-    res.status(401).json({ error: 'Invalid or expired token' });
+    const isExpired = err.name === 'TokenExpiredError';
+    res.status(401).json({ error: isExpired ? 'Token expired, please login again' : 'Invalid or expired token' });
   }
 };
 
