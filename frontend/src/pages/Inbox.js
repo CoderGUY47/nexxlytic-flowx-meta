@@ -237,25 +237,51 @@ export default function Inbox() {
     if (!clientId) return;
     contactsAPI.getAll({ client_id: clientId, limit: 50 }).then(r => setContacts(r.data.data));
 
-    // Socket.io real-time
-    // Socket.io real-time - must connect to backend, not React dev server
-    const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    socketRef.current = io(SOCKET_URL);
-    socketRef.current.emit('join_client', clientId);
-    socketRef.current.on('new_message', (msg) => {
-      if (msg.contact_id === selected?.id) {
-        setMessages(prev => [...prev, {
-          direction: msg.direction || 'inbound',
-          content: msg.message,
-          created_at: new Date()
-        }]);
-      }
-      toast(`New message from ${msg.contact_name || 'contact'}`, { icon: '💬' });
-      // Refresh contact list so new contacts appear
-      contactsAPI.getAll({ client_id: clientId, limit: 50 }).then(r => setContacts(r.data.data));
-    });
+    const isServerless = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
-    return () => socketRef.current?.disconnect();
+    if (isServerless) {
+      // Fallback polling for serverless environments (Vercel) since they don't support persistent WebSockets
+      const interval = setInterval(async () => {
+        try {
+          const rContacts = await contactsAPI.getAll({ client_id: clientId, limit: 50 });
+          setContacts(rContacts.data.data);
+          
+          if (selected?.id) {
+            const rMsgs = await messagesAPI.getAll({ client_id: clientId, contact_id: selected.id });
+            setMessages(prev => {
+              if (JSON.stringify(prev) !== JSON.stringify(rMsgs.data.data)) {
+                return rMsgs.data.data;
+              }
+              return prev;
+            });
+          }
+        } catch (e) {
+          console.error("Polling failed:", e);
+        }
+      }, 5000);
+
+      return () => clearInterval(interval);
+    } else {
+      // Socket.io real-time
+      // Socket.io real-time - must connect to backend, not React dev server
+      const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+      socketRef.current = io(SOCKET_URL);
+      socketRef.current.emit('join_client', clientId);
+      socketRef.current.on('new_message', (msg) => {
+        if (msg.contact_id === selected?.id) {
+          setMessages(prev => [...prev, {
+            direction: msg.direction || 'inbound',
+            content: msg.message,
+            created_at: new Date()
+          }]);
+        }
+        toast(`New message from ${msg.contact_name || 'contact'}`, { icon: '💬' });
+        // Refresh contact list so new contacts appear
+        contactsAPI.getAll({ client_id: clientId, limit: 50 }).then(r => setContacts(r.data.data));
+      });
+
+      return () => socketRef.current?.disconnect();
+    }
   }, [clientId, selected?.id]);
 
   useEffect(() => {
