@@ -23,6 +23,9 @@ export default function Layout() {
   useEffect(() => {
     if (!user?.id) return;
 
+    const isServerless = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+    if (isServerless) return; // Skip socket connection on Vercel
+
     // Connect to global socket
     const socket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || '');
 
