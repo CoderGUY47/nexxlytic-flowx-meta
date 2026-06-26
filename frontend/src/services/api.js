@@ -105,7 +105,20 @@ export const paymentsAPI = {
 };
 
 // ---- Instagram (Meta) ----
-const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const getBackendUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.replace('/api', '');
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5000';
+    }
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 export const metaAPI = {
   getPosts: () => api.get('/meta/media', { baseURL: BACKEND_URL }),
