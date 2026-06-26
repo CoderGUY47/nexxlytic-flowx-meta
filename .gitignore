@@ -1,0 +1,61 @@
+# ============================================
+# NEXXLYTIC FlowX — .gitignore (Monorepo)
+# ============================================
+
+# --- Secrets (NEVER commit these) ---
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*/.env
+*/.env.local
+*/.env.production
+
+# --- Node modules ---
+node_modules/
+**/node_modules/
+
+# --- Build outputs ---
+frontend/build/
+backend/dist/
+
+# --- Logs ---
+backend/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Misc debug/test/seed scripts (not production) ---
+backend/checkSubscriptions.js
+backend/checkTokens.js
+backend/checkVortex.js
+backend/debugInputToken.js
+backend/seedClaudeFlow.js
+backend/sendBroadcast.js
+backend/testDeleteCascade.js
+backend/testExactFlow.js
+backend/testFlowEngine.js
+backend/testFullConversation.js
+backend/updateAllTokens.js
+backend/updateAppSubscriptions.js
+backend/updateClaudeStep3.js
+backend/updateTokenAndSubscribe.js
+
+# --- Stray folder from typo ---
+{backend/
+
+# --- PM2 backup ---
+*.bak
+
+# --- Package locks (optional — keep for reproducible installs) ---
+# package-lock.json
