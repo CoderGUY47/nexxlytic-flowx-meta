@@ -1,20 +1,23 @@
 module.exports = {
-  apps: [{
-    name: 'nexxlytic-flowx',
-    script: 'src/server.js',
-    cwd: '/var/www/nexxlytic/backend',
-    instances: 2,          // 2 CPU cores use karein
-    exec_mode: 'cluster',  // Load balancing
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 5000
-    },
-    max_memory_restart: '500M',
-    error_file: 'logs/error.log',
-    out_file: 'logs/out.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss',
-    watch: false,
-    autorestart: true,
-    restart_delay: 3000
-  }]
+  apps: [
+    {
+      name: 'nexxlytic-flowx',
+      script: 'src/server.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      env: {
+        NODE_ENV: 'development',
+        PORT: 5000
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        PORT: 5000
+      },
+      error_file: './logs/pm2-error.log',
+      out_file: './logs/pm2-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss'
+    }
+  ]
 };
