@@ -1,13 +1,15 @@
 {
   "experimentalServices": {
     "frontend": {
-      "root": "frontend",
+      "entrypoint": "frontend",
       "routePrefix": "/",
       "framework": "create-react-app"
     },
     "backend": {
-      "root": "backend",
+      "entrypoint": "backend/src/server.js",
+      "builder": "@vercel/node",
       "routePrefix": "/api"
     }
   }
 }
+
