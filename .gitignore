@@ -51,11 +51,11 @@ backend/updateAppSubscriptions.js
 backend/updateClaudeStep3.js
 backend/updateTokenAndSubscribe.js
 
-# --- Stray folder from typo ---
-{backend/
 
 # --- PM2 backup ---
 *.bak
 
 # --- Package locks (optional — keep for reproducible installs) ---
 # package-lock.json
+
+.vercel
