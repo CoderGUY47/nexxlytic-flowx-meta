@@ -422,7 +422,10 @@ export default function Inbox() {
         {contacts.map(c => (
           <div
             key={c.id}
-            onClick={() => openContact(c)}
+            onClick={(e) => {
+              if (e.target.closest('button')) return;
+              openContact(c);
+            }}
             onMouseEnter={() => setHoveredContactId(c.id)}
             onMouseLeave={() => setHoveredContactId(null)}
             style={{
@@ -452,11 +455,9 @@ export default function Inbox() {
                     padding: '2px 4px',
                     borderRadius: 4,
                     lineHeight: 1,
-                    opacity: hoveredContactId === c.id ? 1 : 0,
-                    transition: 'opacity 0.15s, background 0.15s',
+                    display: hoveredContactId === c.id ? 'flex' : 'none',
                     color: '#ef4444',
                     fontSize: 13,
-                    display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}
