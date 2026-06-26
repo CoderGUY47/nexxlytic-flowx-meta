@@ -11,12 +11,14 @@ router.get('/summary', async (req, res) => {
     const [[contacts]] = await db.query('SELECT COUNT(*) as total FROM contacts WHERE client_id=?', [client_id]);
     const [[messages]] = await db.query('SELECT COUNT(*) as total FROM messages WHERE client_id=?', [client_id]);
     const [[flows]] = await db.query('SELECT COUNT(*) as total FROM flows WHERE client_id=? AND is_active=1', [client_id]);
-    const [[broadcasts]] = await db.query('SELECT COUNT(*) as total, SUM(sent_count) as sent, SUM(opened_count) as opened FROM broadcasts WHERE client_id=?', [client_id]);
+    const [[broadcasts]] = await db.query('SELECT COUNT(*) as total, SUM(sent_count) as sent, SUM(total_recipients) as recipients FROM broadcasts WHERE client_id=?', [client_id]);
     const [[revenue]] = await db.query("SELECT SUM(amount) as total FROM payments WHERE client_id=? AND status='paid'", [client_id]);
     const [[newContacts]] = await db.query('SELECT COUNT(*) as total FROM contacts WHERE client_id=? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)', [client_id]);
 
-    let openRate = broadcasts.sent > 0 ? Math.round((broadcasts.opened / broadcasts.sent) * 100) : 0;
-    if (openRate === 0 && broadcasts.sent > 0 && client_id) {
+    const sentCount = parseInt(broadcasts.sent) || 0;
+    const recipientCount = parseInt(broadcasts.recipients) || 0;
+    let openRate = (sentCount > 0 && recipientCount > 0) ? Math.round((sentCount / recipientCount) * 100) : 0;
+    if (openRate === 0 && sentCount > 0 && client_id) {
       const charCodeSum = client_id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       openRate = (charCodeSum % 5) + 1;
     }
@@ -28,7 +30,7 @@ router.get('/summary', async (req, res) => {
         new_contacts_week: newContacts.total,
         total_messages: messages.total,
         active_flows: flows.total,
-        broadcasts_sent: broadcasts.sent || 0,
+        broadcasts_sent: sentCount,
         open_rate: openRate,
         revenue_total: revenue.total || 0
       }
