@@ -81,8 +81,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check (supports both local and Vercel routing paths)
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({
     status: 'ok',
     product: 'NEXXLYTIC FlowX',
@@ -92,7 +92,7 @@ app.get('/health', (req, res) => {
 });
 
 // Serve generated test image for Instagram publish test
-app.get('/vr-promo.png', (req, res) => {
+app.get(['/vr-promo.png', '/api/vr-promo.png'], (req, res) => {
   res.sendFile(require('path').join(__dirname, 'vortex_vr_promo.png'));
 });
 
