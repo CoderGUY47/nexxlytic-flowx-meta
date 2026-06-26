@@ -113,6 +113,8 @@ async function migrate() {
     `CREATE TABLE IF NOT EXISTS broadcasts (
       id VARCHAR(36) PRIMARY KEY DEFAULT (uuid()),
       client_id VARCHAR(36) NOT NULL,
+      name VARCHAR(150) NOT NULL,
+      platform ENUM('whatsapp','instagram','facebook') DEFAULT 'whatsapp',
       segment VARCHAR(100) DEFAULT 'all',
       message TEXT NOT NULL,
       message_type ENUM('text','image') DEFAULT 'text',
