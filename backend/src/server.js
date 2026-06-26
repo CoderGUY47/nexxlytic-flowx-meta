@@ -146,9 +146,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => {
-  logger.info(`🚀 NEXXLYTIC FlowX running on port ${PORT}`);
-});
+// Conditionally start local HTTP server if not in Vercel environment
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  httpServer.listen(PORT, () => {
+    logger.info(`🚀 NEXXLYTIC FlowX running on port ${PORT}`);
+  });
+}
 
-module.exports = { app, io };
+module.exports = app;
