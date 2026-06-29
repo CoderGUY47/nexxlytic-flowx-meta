@@ -1,10 +1,10 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const axios = require('axios');
-const db = require('../config/db');
+const axios = require("axios");
+const db = require("../config/db");
 
 // Redirect user to Facebook Login
-router.get('/facebook', (req, res) => {
+router.get("/facebook", (req, res) => {
   const { client_id } = req.query;
   if (!client_id) {
     return res.status(400).send("Missing client_id parameter");
@@ -12,53 +12,68 @@ router.get('/facebook', (req, res) => {
 
   const appId = process.env.FB_APP_ID;
   const appSecret = process.env.FB_APP_SECRET;
-  
+
   // Determine backend redirect URL
-  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const host = req.get('host');
+  const protocol =
+    req.secure || req.headers["x-forwarded-proto"] === "https"
+      ? "https"
+      : "http";
+  const host = req.get("host");
   const redirectUri = `${protocol}://${host}/api/oauth/facebook/callback`;
 
   // If no credentials are set, automatically run the mock/simulated flow in demo mode
-  const isDemoMode = !appId || appId.startsWith("demo_") || appId === "placeholder" || !appSecret || appSecret === "placeholder";
-  
+  const isDemoMode =
+    !appId ||
+    appId.startsWith("demo_") ||
+    appId === "placeholder" ||
+    !appSecret ||
+    appSecret === "placeholder";
+
   if (isDemoMode) {
-    console.log(`🤖 FB OAuth: App credentials missing. Running simulated flow for client: ${client_id}`);
+    console.log(
+      `🤖 FB OAuth: App credentials missing. Running simulated flow for client: ${client_id}`,
+    );
     const simulatedCallbackUrl = `${redirectUri}?code=mock_oauth_code&state=${client_id}`;
     return res.redirect(simulatedCallbackUrl);
   }
 
   // Production Facebook OAuth dialog
   const scopes = [
-    'pages_show_list',
-    'instagram_basic',
-    'instagram_manage_comments',
-    'instagram_manage_messages',
-    'pages_manage_metadata',
-    'pages_read_engagement'
-  ].join(',');
+    "pages_show_list",
+    "instagram_manage_comments",
+    "instagram_manage_messages",
+    "pages_manage_metadata",
+    "pages_messaging",
+  ].join(",");
 
   const fbAuthUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes}&state=${client_id}`;
   return res.redirect(fbAuthUrl);
 });
 
 // OAuth Callback handler
-router.get('/facebook/callback', async (req, res) => {
+router.get("/facebook/callback", async (req, res) => {
   const { code, state: clientId, error } = req.query;
-  
+
   if (error) {
     console.error("❌ FB OAuth error from query:", error);
-    return res.redirect(`http://localhost:3000/settings?oauth=failed&reason=${error}`);
+    return res.redirect(
+      `http://localhost:3000/settings?oauth=failed&reason=${error}`,
+    );
   }
 
   if (!code || !clientId) {
-    return res.redirect(`http://localhost:3000/settings?oauth=failed&reason=invalid_callback`);
+    return res.redirect(
+      `http://localhost:3000/settings?oauth=failed&reason=invalid_callback`,
+    );
   }
 
   try {
-    if (code === 'mock_oauth_code') {
+    if (code === "mock_oauth_code") {
       // MOCK DEMO FLOW
-      console.log(`🤖 Simulating Facebook OAuth success for client ID: ${clientId}`);
-      
+      console.log(
+        `🤖 Simulating Facebook OAuth success for client ID: ${clientId}`,
+      );
+
       const mockPageId = "10284572849";
       const mockFbPageToken = `demo_fb_page_token_abc_${Date.now()}`;
       const mockIgPageToken = `demo_ig_page_token_xyz_${Date.now()}`;
@@ -67,59 +82,82 @@ router.get('/facebook/callback', async (req, res) => {
 
       // Save credentials in the database
       await db.query(
-        `UPDATE clients 
-         SET fb_page_id = ?, 
-             fb_page_token = ?, 
+        `UPDATE clients
+         SET fb_page_id = ?,
+             fb_page_token = ?,
              ig_page_token = ?,
              wa_access_token = ?,
              wa_phone_number_id = ?
          WHERE id = ?`,
-        [mockPageId, mockFbPageToken, mockIgPageToken, mockWaAccessToken, mockWaPhoneNumberId, clientId]
+        [
+          mockPageId,
+          mockFbPageToken,
+          mockIgPageToken,
+          mockWaAccessToken,
+          mockWaPhoneNumberId,
+          clientId,
+        ],
       );
-      
-      console.log(`✅ Demo Meta credentials successfully saved in client: ${clientId}`);
+
+      console.log(
+        `✅ Demo Meta credentials successfully saved in client: ${clientId}`,
+      );
       return res.redirect(`http://localhost:3000/settings?oauth=success`);
     }
 
     // PRODUCTION METALLIC OAUTH EXCHANGE
     const appId = process.env.FB_APP_ID;
     const appSecret = process.env.FB_APP_SECRET;
-    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const host = req.get('host');
+    const protocol =
+      req.secure || req.headers["x-forwarded-proto"] === "https"
+        ? "https"
+        : "http";
+    const host = req.get("host");
     const redirectUri = `${protocol}://${host}/api/oauth/facebook/callback`;
 
     // 1. Exchange code for user access token
-    const tokenRes = await axios.get(`https://graph.facebook.com/v22.0/oauth/access_token`, {
-      params: {
-        client_id: appId,
-        redirect_uri: redirectUri,
-        client_secret: appSecret,
-        code: code
-      }
-    });
+    const tokenRes = await axios.get(
+      `https://graph.facebook.com/v22.0/oauth/access_token`,
+      {
+        params: {
+          client_id: appId,
+          redirect_uri: redirectUri,
+          client_secret: appSecret,
+          code: code,
+        },
+      },
+    );
 
     const userAccessToken = tokenRes.data.access_token;
 
     // 2. Exchange for long-lived user access token
-    const longLivedRes = await axios.get(`https://graph.facebook.com/v22.0/oauth/access_token`, {
-      params: {
-        grant_type: 'fb_exchange_token',
-        client_id: appId,
-        client_secret: appSecret,
-        fb_exchange_token: userAccessToken
-      }
-    });
+    const longLivedRes = await axios.get(
+      `https://graph.facebook.com/v22.0/oauth/access_token`,
+      {
+        params: {
+          grant_type: "fb_exchange_token",
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: userAccessToken,
+        },
+      },
+    );
 
     const longLivedToken = longLivedRes.data.access_token;
 
     // 3. Get user's managed Facebook Pages
-    const pagesRes = await axios.get(`https://graph.facebook.com/v22.0/me/accounts`, {
-      params: { access_token: longLivedToken }
-    });
+    const pagesRes = await axios.get(
+      `https://graph.facebook.com/v22.0/me/accounts`,
+      {
+        params: { access_token: longLivedToken },
+      },
+    );
 
     const pages = pagesRes.data.data;
     if (!pages || pages.length === 0) {
-      return res.redirect(`http://localhost:3000/settings?oauth=failed&reason=no_pages_found`);
+      return res.redirect(
+        `http://localhost:3000/settings?oauth=failed&reason=no_pages_found`,
+      );
     }
 
     // Select the first Facebook page for onboarding automatically, or look for specific page
@@ -130,35 +168,58 @@ router.get('/facebook/callback', async (req, res) => {
     // 4. Look up connected Instagram Business account
     let igPageToken = pageAccessToken; // Often same scope, but let's query the connected IG business id
     let igBusinessAccountId = null;
-    
+
     try {
-      const igRes = await axios.get(`https://graph.facebook.com/v22.0/${pageId}`, {
-        params: {
-          fields: 'instagram_business_account',
-          access_token: pageAccessToken
-        }
-      });
+      const igRes = await axios.get(
+        `https://graph.facebook.com/v22.0/${pageId}`,
+        {
+          params: {
+            fields: "instagram_business_account",
+            access_token: pageAccessToken,
+          },
+        },
+      );
       igBusinessAccountId = igRes.data?.instagram_business_account?.id;
     } catch (err) {
-      console.warn("⚠️ Could not query connected Instagram Business Account:", err.message);
+      console.warn(
+        "⚠️ Could not query connected Instagram Business Account:",
+        err.message,
+      );
     }
 
-    // 5. Update database with retrieved credentials
+    // 5. Subscribe the Page to the App so Meta forwards webhooks to our callback URL
+    try {
+      const subUrl = `https://graph.facebook.com/v22.0/${pageId}/subscribed_apps`;
+      await axios.post(
+        subUrl,
+        { subscribed_fields: ['messages', 'messaging_postbacks', 'comments', 'messaging_referral'] },
+        { params: { access_token: pageAccessToken } }
+      );
+      console.log(`✅ Facebook Page ${pageId} subscribed to webhooks successfully`);
+    } catch (subErr) {
+      console.warn("⚠️ Webhook subscription during OAuth failed:", subErr.response?.data || subErr.message);
+    }
+
+    // 6. Update database with retrieved credentials
     await db.query(
-      `UPDATE clients 
-       SET fb_page_id = ?, 
-           fb_page_token = ?, 
-           ig_page_token = ? 
+      `UPDATE clients
+       SET fb_page_id = ?,
+           fb_page_token = ?,
+           ig_page_token = ?,
+           ig_user_id = ?
        WHERE id = ?`,
-      [pageId, pageAccessToken, pageAccessToken, clientId]
+      [pageId, pageAccessToken, pageAccessToken, igBusinessAccountId, clientId],
     );
 
-    console.log(`✅ Production Meta tokens connected successfully for client: ${clientId}`);
+    console.log(
+      `✅ Production Meta tokens connected successfully for client: ${clientId}`,
+    );
     return res.redirect(`http://localhost:3000/settings?oauth=success`);
-
   } catch (err) {
     console.error("❌ FB OAuth Exception:", err.response?.data || err.message);
-    return res.redirect(`http://localhost:3000/settings?oauth=failed&reason=server_exception`);
+    return res.redirect(
+      `http://localhost:3000/settings?oauth=failed&reason=server_exception`,
+    );
   }
 });
 
