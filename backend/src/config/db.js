@@ -13,7 +13,10 @@ const pool = mysql2.createPool({
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   timezone: '+00:00',
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  ...(process.env.DB_SSL === 'true' && {
+    ssl: { rejectUnauthorized: false }
+  })
 });
 
 // Verify connection on startup

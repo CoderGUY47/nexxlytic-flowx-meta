@@ -2,7 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const db = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
-const { triggerFlow, handlePostback, handleUserInput } = require("../services/flowEngine");
+const { triggerFlow, handlePostback, handleUserInput, handleTextQuickReply } = require("../services/flowEngine");
 const router = express.Router();
 
 /*
@@ -159,6 +159,16 @@ router.post("/whatsapp", async (req, res) => {
         io
       });
       if (inputHandled) {
+        return res.sendStatus(200);
+      }
+
+      const qrHandled = await handleTextQuickReply({
+        clientId: client.id,
+        contactId,
+        text: messageText,
+        io
+      });
+      if (qrHandled) {
         return res.sendStatus(200);
       }
     }

@@ -40,7 +40,7 @@ const sendInstagramMessage = async (pageToken, recipientId, messagePayload) => {
   try {
     const message = typeof messagePayload === 'object' ? messagePayload : { text: messagePayload };
     const res = await axios.post(
-      `https://graph.facebook.com/v18.0/me/messages`,
+      `https://graph.facebook.com/v22.0/me/messages`,
       {
         recipient: { id: recipientId },
         message
@@ -49,19 +49,21 @@ const sendInstagramMessage = async (pageToken, recipientId, messagePayload) => {
     );
     return { success: true, message_id: res.data.message_id };
   } catch (err) {
+    console.error('❌ Meta API Instagram Send Error Detail:', JSON.stringify(err.response?.data || err.message, null, 2));
     logger.error('Instagram send error:', err.response?.data || err.message);
     return { success: false, error: err.response?.data };
   }
 };
 
 // Send Facebook Messenger message
-const sendFacebookMessage = async (pageToken, recipientId, message) => {
+const sendFacebookMessage = async (pageToken, recipientId, messagePayload) => {
   try {
+    const message = typeof messagePayload === 'object' ? messagePayload : { text: messagePayload };
     const res = await axios.post(
-      `https://graph.facebook.com/v18.0/me/messages`,
+      `https://graph.facebook.com/v22.0/me/messages`,
       {
         recipient: { id: recipientId },
-        message: { text: message }
+        message
       },
       { params: { access_token: pageToken } }
     );

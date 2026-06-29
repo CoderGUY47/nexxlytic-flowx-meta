@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require("uuid");
 const axios = require("axios");
 const db = require("../config/db");
 const { generateAIReply } = require("../services/aiService");
-const { triggerFlow, handlePostback, handleUserInput } = require("../services/flowEngine");
+const { triggerFlow, handlePostback, handleUserInput, handleTextQuickReply } = require("../services/flowEngine");
 
 console.log("🔥 META WEBHOOK FILE LOADED");
 
@@ -66,8 +66,9 @@ function extractPhone(text) {
 SEND INSTAGRAM DM
 =========================================
 */
-async function sendInstagramMessage(recipient, messagePayload) {
+async function sendInstagramMessage(recipient, messagePayload, customToken) {
   try {
+    const tokenToUse = customToken || ACCESS_TOKEN;
     const message = typeof messagePayload === 'object' ? messagePayload : { text: messagePayload };
     const response = await axios.post(
       `https://graph.facebook.com/v22.0/me/messages`,
@@ -77,7 +78,7 @@ async function sendInstagramMessage(recipient, messagePayload) {
       },
       {
         headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          Authorization: `Bearer ${tokenToUse}`,
           "Content-Type": "application/json",
         },
       },
@@ -88,6 +89,22 @@ async function sendInstagramMessage(recipient, messagePayload) {
     return response.data;
   } catch (err) {
     console.log("❌ DM SEND ERROR:", err.response?.data || err.message);
+  }
+}
+
+async function fetchInstagramProfile(senderId, pageToken) {
+  try {
+    const res = await axios.get(`https://graph.facebook.com/v22.0/${senderId}`, {
+      params: {
+        fields: 'name,username',
+        access_token: pageToken
+      }
+    });
+    const displayName = res.data?.name || res.data?.username || senderId;
+    return { name: displayName, username: res.data?.username || senderId };
+  } catch (err) {
+    console.warn("⚠️ Failed to fetch Instagram profile details from API:", err.response?.data || err.message);
+    return { name: senderId, username: senderId };
   }
 }
 
@@ -151,16 +168,19 @@ router.post("/", async (req, res) => {
       client = rows[0];
     }
 
-    if (!client) {
-      // Find the active client dynamically based on the access token or fallback to Vortex VR Studios
-      let [clientRows] = await db.query(
-        "SELECT * FROM clients WHERE ig_page_token = ? LIMIT 1",
-        [ACCESS_TOKEN]
+    const receiverId = entry?.id;
+
+    if (!client && receiverId) {
+      // Find client dynamically based on the receiver's Instagram Business ID or Facebook Page ID
+      const [clientRows] = await db.query(
+        "SELECT * FROM clients WHERE ig_user_id = ? OR fb_page_id = ? LIMIT 1",
+        [receiverId, receiverId]
       );
       client = clientRows[0];
     }
 
     if (!client) {
+      // Fallback: Prioritize Vortex VR Studios for testing
       const [clientRows] = await db.query(
         "SELECT * FROM clients WHERE id = 'e121d9ae-6da1-4778-8dd2-439509ee5722' LIMIT 1"
       );
@@ -212,9 +232,10 @@ router.post("/", async (req, res) => {
         contactId = contacts[0].id;
       } else {
         contactId = uuidv4();
+        const profile = await fetchInstagramProfile(senderId, client.fb_page_token);
         await db.execute(
           "INSERT INTO contacts (id, client_id, name, phone, platform) VALUES (?, ?, ?, ?, 'instagram')",
-          [contactId, client.id, `Instagram User`, senderId]
+          [contactId, client.id, profile.name, senderId]
         );
       }
 
@@ -252,7 +273,7 @@ router.post("/", async (req, res) => {
           await axios.post(
             `https://graph.facebook.com/v22.0/${commentId}/replies`,
             { message: "Thanks for your comment! 🙌 Check your DM for details." },
-            { headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, "Content-Type": "application/json" } }
+            { headers: { Authorization: `Bearer ${client.fb_page_token}`, "Content-Type": "application/json" } }
           );
           console.log("✅ Comment reply posted successfully");
         } catch (err) {
@@ -272,7 +293,7 @@ router.post("/", async (req, res) => {
           await axios.post(
             `https://graph.facebook.com/v22.0/${commentId}/replies`,
             { message: "Thanks for your comment! 🙌 Check your DM for details." },
-            { headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, "Content-Type": "application/json" } }
+            { headers: { Authorization: `Bearer ${client.fb_page_token}`, "Content-Type": "application/json" } }
           );
           console.log("✅ Comment reply posted successfully");
         } catch (err) {
@@ -293,7 +314,7 @@ router.post("/", async (req, res) => {
         };
 
         try {
-          await sendInstagramMessage(senderId, step1Payload);
+          await sendInstagramMessage(senderId, step1Payload, client.fb_page_token);
         } catch (err) {
           console.log("⚠️ Meta API DM failed (simulating DM):");
           console.log(`💬 DM TO: ${senderId} | "${step1Payload.text}"`);
@@ -334,7 +355,7 @@ router.post("/", async (req, res) => {
         const textMatch = kw.match_type === 'exact'
           ? commentText.toLowerCase().trim() === kw.keyword.toLowerCase().trim()
           : commentText.toLowerCase().includes(kw.keyword.toLowerCase());
-        
+
         if (textMatch) {
           matchedKeyword = kw;
           break;
@@ -359,7 +380,7 @@ router.post("/", async (req, res) => {
         await axios.post(
           `https://graph.facebook.com/v22.0/${commentId}/replies`,
           { message: "Thanks for your comment! 🙌 Check your DM for details." },
-          { headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, "Content-Type": "application/json" } }
+          { headers: { Authorization: `Bearer ${client.fb_page_token}`, "Content-Type": "application/json" } }
         );
         console.log("✅ Comment reply posted successfully");
       } catch (err) {
@@ -373,7 +394,7 @@ router.post("/", async (req, res) => {
       const fullDmText = replyText + waLink;
 
       try {
-        await sendInstagramMessage(senderId, fullDmText);
+        await sendInstagramMessage(senderId, fullDmText, client.fb_page_token);
       } catch (err) {
         console.log("⚠️ Meta API DM failed (simulating DM):");
         console.log(`💬 DM TO: ${senderId} | "${fullDmText}"`);
@@ -403,17 +424,16 @@ router.post("/", async (req, res) => {
     📩 INSTAGRAM DM FLOW
     =========================================
     */
-    const messageChange = entry?.changes?.find((c) => c.field === "messages" || c.field === "messaging_postbacks");
+    const messagingEvent = entry?.messaging?.[0];
 
-    if (messageChange) {
-      const value = messageChange.value;
-      const senderId = value?.from?.id;
-      const messageText = value?.message?.text || value?.postback?.title || "";
-      const quickReplyPayload = value?.message?.quick_reply?.payload;
-      const postbackPayload = value?.postback?.payload;
+    if (messagingEvent) {
+      const senderId = messagingEvent?.sender?.id;
+      const messageText = messagingEvent?.message?.text || messagingEvent?.postback?.title || "";
+      const quickReplyPayload = messagingEvent?.message?.quick_reply?.payload;
+      const postbackPayload = messagingEvent?.postback?.payload;
       const payload = quickReplyPayload || postbackPayload;
 
-      const attachments = value?.message?.attachments;
+      const attachments = messagingEvent?.message?.attachments;
       const isStoryMention = attachments && attachments.some(att => att.type === 'story_mention');
 
       console.log("📩 Instagram DM/Postback received");
@@ -436,14 +456,15 @@ router.post("/", async (req, res) => {
         contactId = contacts[0].id;
       } else {
         contactId = uuidv4();
+        const profile = await fetchInstagramProfile(senderId, client.fb_page_token);
         await db.execute(
           "INSERT INTO contacts (id, client_id, name, phone, platform) VALUES (?, ?, ?, ?, 'instagram')",
-          [contactId, client.id, `Instagram User`, senderId]
+          [contactId, client.id, profile.name, senderId]
         );
       }
 
-      const contentToSave = isStoryMention 
-        ? "[Story Mention 📸]" 
+      const contentToSave = isStoryMention
+        ? "[Story Mention 📸]"
         : (messageText || (payload ? `[Button Clicked: ${payload}]` : ""));
 
       // Save incoming message in database
@@ -509,6 +530,16 @@ router.post("/", async (req, res) => {
         if (inputHandled) {
           return res.sendStatus(200);
         }
+
+        const qrHandled = await handleTextQuickReply({
+          clientId: client.id,
+          contactId,
+          text: messageText,
+          io
+        });
+        if (qrHandled) {
+          return res.sendStatus(200);
+        }
       }
 
       // Check if DM text triggers a flow by keyword
@@ -559,9 +590,9 @@ router.post("/", async (req, res) => {
             }
           }
         };
- 
+
         try {
-          await sendInstagramMessage(senderId, step2Payload);
+          await sendInstagramMessage(senderId, step2Payload, client.fb_page_token);
         } catch (err) {
           console.log("⚠️ Meta API template send failed. Falling back to quick replies:", err.message);
           await sendInstagramMessage(senderId, {
@@ -573,7 +604,7 @@ router.post("/", async (req, res) => {
                 payload: "CLAUDE_FOLLOWING_CONFIRMED"
               }
             ]
-          });
+          }, client.fb_page_token);
         }
 
         const displayContent = JSON.stringify(step2Payload);
@@ -610,7 +641,7 @@ What you'll learn:
 Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
 
         try {
-          await sendInstagramMessage(senderId, step3Text);
+          await sendInstagramMessage(senderId, step3Text, client.fb_page_token);
         } catch (err) {
           console.log("⚠️ Meta API DM failed (simulating reply DM):");
           console.log(`💬 DM TO: ${senderId} | "${step3Text}"`);
@@ -652,7 +683,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
 
         // Confirm on Instagram
         const confirmationReply = "✅ Thank you! Our team will contact you on WhatsApp shortly.";
-        await sendInstagramMessage(senderId, confirmationReply);
+        await sendInstagramMessage(senderId, confirmationReply, client.fb_page_token);
 
         // Save confirmation DM message
         await db.execute(
@@ -688,7 +719,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
         const textMatch = kw.match_type === 'exact'
           ? messageText.toLowerCase().trim() === kw.keyword.toLowerCase().trim()
           : messageText.toLowerCase().includes(kw.keyword.toLowerCase());
-        
+
         if (textMatch) {
           matchedKeyword = kw;
           break;
@@ -729,7 +760,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
 
       // Send Instagram reply DM
       try {
-        await sendInstagramMessage(senderId, reply);
+        await sendInstagramMessage(senderId, reply, client.fb_page_token);
       } catch (err) {
         console.log("⚠️ Meta API DM failed (simulating reply DM):");
         console.log(`💬 DM TO: ${senderId} | "${reply}"`);

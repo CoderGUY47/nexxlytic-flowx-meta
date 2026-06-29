@@ -156,36 +156,59 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false 
         
         let payload = null;
         if (buttons.length > 0) {
-          payload = {
-            attachment: {
-              type: "template",
-              payload: {
-                template_type: "generic",
-                elements: [
-                  {
-                    title: text || "Access Links",
-                    subtitle: subtitle || "",
-                    buttons: buttons.map((btn, idx) => {
-                      if (btn.type === 'web_url') {
-                        return {
-                          type: "web_url",
-                          url: btn.url,
-                          title: btn.title
-                        };
-                      } else {
-                        const targetNodeId = getNextNodeId(steps, nodeId, `btn_${idx}`);
-                        return {
-                          type: "postback",
-                          title: btn.title,
-                          payload: `FLOW_NODE:${flow.id}:${targetNodeId || btn.next_node || ''}`
-                        };
+          const hasWebUrl = buttons.some(btn => btn.type === 'web_url');
+          if (!hasWebUrl && buttons.length <= 3) {
+            payload = {
+              type: "interactive",
+              interactive: {
+                type: "button",
+                body: { text: text || "Select an option:" },
+                action: {
+                  buttons: buttons.map((btn, idx) => {
+                    const targetNodeId = getNextNodeId(steps, nodeId, `btn_${idx}`);
+                    return {
+                      type: "reply",
+                      reply: {
+                        id: `FLOW_NODE:${flow.id}:${targetNodeId || btn.next_node || ''}`,
+                        title: btn.title.substring(0, 20)
                       }
-                    })
-                  }
-                ]
+                    };
+                  })
+                }
               }
-            }
-          };
+            };
+          } else {
+            payload = {
+              attachment: {
+                type: "template",
+                payload: {
+                  template_type: "generic",
+                  elements: [
+                    {
+                      title: text || "Access Links",
+                      subtitle: subtitle || "",
+                      buttons: buttons.map((btn, idx) => {
+                        if (btn.type === 'web_url') {
+                          return {
+                            type: "web_url",
+                            url: btn.url,
+                            title: btn.title
+                          };
+                        } else {
+                          const targetNodeId = getNextNodeId(steps, nodeId, `btn_${idx}`);
+                          return {
+                            type: "postback",
+                            title: btn.title,
+                            payload: `FLOW_NODE:${flow.id}:${targetNodeId || btn.next_node || ''}`
+                          };
+                        }
+                      })
+                    }
+                  ]
+                }
+              }
+            };
+          }
         } else if (quickReplies.length > 0) {
           payload = {
             type: "interactive",
@@ -215,11 +238,14 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false 
         const isDemoToken = !waToken || waToken.startsWith("demo_") || waToken.includes("placeholder");
         
         if (!skipApi && !isDemoToken) {
-          let waText = text;
-          if (buttons.length > 0) {
+          const hasWebUrl = buttons.some(btn => btn.type === 'web_url');
+          if (buttons.length > 0 && (hasWebUrl || buttons.length > 3)) {
+            let waText = text;
             buttons.forEach(btn => {
               if (btn.type === 'web_url') {
                 waText += `\n\n👉 ${btn.title}: ${btn.url}`;
+              } else {
+                waText += `\n\n🔹 ${btn.title}`;
               }
             });
             sendResult = await sendWhatsAppMessage(waPhoneId, waToken, waTo, waText);
@@ -410,6 +436,75 @@ async function handlePostback({ clientId, contactId, platform, payload, io, skip
   }
 }
 
+// Check if user text matches any quick reply button of their current node and advance flow
+async function handleTextQuickReply({ clientId, contactId, text, io, skipApi = false }) {
+  try {
+    const [contacts] = await db.query("SELECT * FROM contacts WHERE id = ?", [contactId]);
+    if (!contacts.length) return false;
+    const contact = contacts[0];
+    
+    if (!contact.current_flow_id || !contact.current_node_id) {
+      return false;
+    }
+    
+    const flowId = contact.current_flow_id;
+    const nodeId = contact.current_node_id;
+    
+    const [flows] = await db.query("SELECT * FROM flows WHERE id = ?", [flowId]);
+    if (!flows.length) return false;
+    const flow = flows[0];
+    
+    let steps = flow.steps;
+    if (typeof steps === 'string') {
+      steps = JSON.parse(steps);
+    }
+    if (!steps || !steps.nodes) return false;
+    
+    const node = steps.nodes.find(n => n.id === nodeId);
+    if (!node) return false;
+    
+    const quickReplies = node.data?.quick_replies || [];
+    const buttons = node.data?.buttons || [];
+    
+    const cleanInput = text.toLowerCase().trim();
+    
+    // 1. Check quick replies first
+    let matchedQrIdx = quickReplies.findIndex(qr => qr.title?.toLowerCase().trim() === cleanInput);
+    if (matchedQrIdx !== -1) {
+      const targetNodeId = getNextNodeId(steps, nodeId, `qr_${matchedQrIdx}`);
+      if (targetNodeId) {
+        console.log(`🎯 Matched Quick Reply text: [${quickReplies[matchedQrIdx].title}] -> Node: ${targetNodeId}`);
+        const [clientRows] = await db.query("SELECT * FROM clients WHERE id = ?", [clientId]);
+        const client = clientRows[0];
+        if (client) {
+          await executeNode({ client, contact, flow, nodeId: targetNodeId, io, skipApi });
+          return true;
+        }
+      }
+    }
+    
+    // 2. Check reply buttons
+    let matchedBtnIdx = buttons.findIndex(btn => btn.title?.toLowerCase().trim() === cleanInput && btn.type !== 'web_url');
+    if (matchedBtnIdx !== -1) {
+      const targetNodeId = getNextNodeId(steps, nodeId, `btn_${matchedBtnIdx}`);
+      if (targetNodeId) {
+        console.log(`🎯 Matched Button text: [${buttons[matchedBtnIdx].title}] -> Node: ${targetNodeId}`);
+        const [clientRows] = await db.query("SELECT * FROM clients WHERE id = ?", [clientId]);
+        const client = clientRows[0];
+        if (client) {
+          await executeNode({ client, contact, flow, nodeId: targetNodeId, io, skipApi });
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (err) {
+    console.error("❌ Error in handleTextQuickReply:", err);
+    return false;
+  }
+}
+
 // Handle plain text response (e.g. collecting phone number)
 async function handleUserInput({ clientId, contactId, platform, text, io, skipApi = false }) {
   try {
@@ -499,5 +594,6 @@ module.exports = {
   triggerFlow,
   handlePostback,
   handleUserInput,
+  handleTextQuickReply,
   executeNode
 };
