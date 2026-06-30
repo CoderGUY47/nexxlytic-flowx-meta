@@ -52,7 +52,11 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false,
     const platform = node.data?.platform || flow.platform || 'instagram';
     
     if (node.type === 'message') {
-      const text = node.data?.text || node.data?.content || '';
+      let text = node.data?.text || node.data?.content || '';
+      const cleanName = contact.name ? contact.name.replace(/\s*\(WhatsApp\)/i, "").replace(/\s*\(Instagram\)/i, "").replace(/^User\s+\d+.*$/, "there") : "there";
+      if (text.includes("Hey servent of lord shyam 👋")) {
+        text = text.replace("Hey servent of lord shyam 👋", `Hey ${cleanName}, glad you messaged us. Wait for our reply,`);
+      }
       const quickReplies = node.data?.quick_replies || [];
       const buttons = node.data?.buttons || [];
       const templateType = node.data?.template_type; // 'generic' or 'button' or 'text'
