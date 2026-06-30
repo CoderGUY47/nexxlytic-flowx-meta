@@ -428,6 +428,13 @@ router.post("/", async (req, res) => {
 
     if (messagingEvent) {
       const senderId = messagingEvent?.sender?.id;
+
+      // Ignore messages sent by the bot/page itself to prevent infinite loops
+      if (senderId === client.ig_user_id || senderId === client.fb_page_id) {
+        console.log("⚠️ Ignoring self-generated message event to prevent loop");
+        return res.sendStatus(200);
+      }
+
       const messageText = messagingEvent?.message?.text || messagingEvent?.postback?.title || "";
       const quickReplyPayload = messagingEvent?.message?.quick_reply?.payload;
       const postbackPayload = messagingEvent?.postback?.payload;
