@@ -44,7 +44,7 @@ const renderMessageContent = (content, onButtonClick) => {
     try {
       const parsed = JSON.parse(content);
 
-      // WhatsApp interactive replies & CTA URL buttons
+      // whatsapp interactive replies and cta url buttons
       if (parsed.type === "interactive" && parsed.interactive) {
         const text = parsed.interactive.body?.text || "";
         if (parsed.interactive.type === "cta_url") {
