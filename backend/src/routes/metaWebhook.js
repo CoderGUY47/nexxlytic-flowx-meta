@@ -264,7 +264,8 @@ router.post("/", async (req, res) => {
         triggerType: 'keyword',
         triggerValue: commentText,
         io,
-        postId: postId
+        postId: postId,
+        commentId: commentId
       });
 
       if (flowTriggered) {
@@ -314,7 +315,7 @@ router.post("/", async (req, res) => {
         };
 
         try {
-          await sendInstagramMessage(senderId, step1Payload, client.fb_page_token);
+          await sendInstagramMessage({ comment_id: commentId }, step1Payload, client.fb_page_token);
         } catch (err) {
           console.log("⚠️ Meta API DM failed (simulating DM):");
           console.log(`💬 DM TO: ${senderId} | "${step1Payload.text}"`);

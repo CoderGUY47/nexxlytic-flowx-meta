@@ -29,7 +29,7 @@ function extractPhone(text) {
 }
 
 // Execute a specific node in a flow
-async function executeNode({ client, contact, flow, nodeId, io, skipApi = false }) {
+async function executeNode({ client, contact, flow, nodeId, io, skipApi = false, commentId = null }) {
   try {
     let steps = flow.steps;
     if (typeof steps === 'string') {
@@ -125,7 +125,7 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false 
         
         if (!skipApi && !isDemoToken) {
           if (platform === 'instagram') {
-            sendResult = await sendInstagramMessage(pageToken, contact.phone, payload);
+            sendResult = await sendInstagramMessage(pageToken, commentId ? { comment_id: commentId } : contact.phone, payload);
           } else {
             sendResult = await sendFacebookMessage(pageToken, contact.phone, payload);
           }
@@ -320,7 +320,7 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false 
 }
 
 // Trigger flow by keyword match or other events
-async function triggerFlow({ clientId, contactId, platform, triggerType, triggerValue, io, skipApi = false, postId = null }) {
+async function triggerFlow({ clientId, contactId, platform, triggerType, triggerValue, io, skipApi = false, postId = null, commentId = null }) {
   try {
     const [flows] = await db.query(
       "SELECT * FROM flows WHERE client_id = ? AND platform = ? AND trigger_type = ? AND is_active = 1",
@@ -394,7 +394,7 @@ async function triggerFlow({ clientId, contactId, platform, triggerType, trigger
     }
     
     if (startNodeId) {
-      await executeNode({ client, contact, flow: matchedFlow, nodeId: startNodeId, io, skipApi });
+      await executeNode({ client, contact, flow: matchedFlow, nodeId: startNodeId, io, skipApi, commentId });
       return true;
     }
     

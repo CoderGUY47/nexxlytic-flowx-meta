@@ -39,10 +39,11 @@ const sendWhatsAppMessage = async (phoneNumberId, accessToken, to, messagePayloa
 const sendInstagramMessage = async (pageToken, recipientId, messagePayload) => {
   try {
     const message = typeof messagePayload === 'object' ? messagePayload : { text: messagePayload };
+    const recipient = typeof recipientId === 'object' ? recipientId : { id: recipientId };
     const res = await axios.post(
       `https://graph.facebook.com/v22.0/me/messages`,
       {
-        recipient: { id: recipientId },
+        recipient,
         message
       },
       { params: { access_token: pageToken } }
