@@ -212,7 +212,25 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
       try {
         await axios.post(
           `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
-          { messaging_product: "whatsapp", to: from, type: "text", text: { body: step3Text } },
+          {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: from,
+            type: "interactive",
+            interactive: {
+              type: "cta_url",
+              body: {
+                text: `Hey ${cleanName}, glad you messaged us. Wait for our reply,\nGen AI Workshop - absolutely FREE! 🚀\n\nCost: ₹0 (FREE!)\nWhat you'll learn:\n✅ 25+ Powerful AI Tools\n✅ Become an Excel Pro\n\nReply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`
+              },
+              action: {
+                name: "cta_url",
+                parameters: {
+                  display_text: "Get Drive Access",
+                  url: "https://docs.google.com/document/d/1R7EzaFhkDRRmRPQI-cioTi-Q8MTQvx0ltP-YrrhyG7k/edit?usp=sharing"
+                }
+              }
+            }
+          },
           { headers: { Authorization: `Bearer ${client.wa_access_token}`, "Content-Type": "application/json" } }
         );
       } catch (err) {
@@ -279,7 +297,25 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
       try {
         await axios.post(
           `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
-          { messaging_product: "whatsapp", to: from, type: "text", text: { body: step3Text } },
+          {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: from,
+            type: "interactive",
+            interactive: {
+              type: "cta_url",
+              body: {
+                text: `Hey ${cleanName}, glad you messaged us. Wait for our reply,\nGen AI Workshop - absolutely FREE! 🚀\n\nCost: ₹0 (FREE!)\nWhat you'll learn:\n✅ 25+ Powerful AI Tools\n✅ Become an Excel Pro\n\nReply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`
+              },
+              action: {
+                name: "cta_url",
+                parameters: {
+                  display_text: "Get Drive Access",
+                  url: "https://docs.google.com/document/d/1R7EzaFhkDRRmRPQI-cioTi-Q8MTQvx0ltP-YrrhyG7k/edit?usp=sharing"
+                }
+              }
+            }
+          },
           { headers: { Authorization: `Bearer ${client.wa_access_token}`, "Content-Type": "application/json" } }
         );
       } catch (err) {

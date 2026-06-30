@@ -244,15 +244,33 @@ async function executeNode({ client, contact, flow, nodeId, io, skipApi = false,
         if (!skipApi && !isDemoToken) {
           const hasWebUrl = buttons.some(btn => btn.type === 'web_url');
           if (buttons.length > 0 && (hasWebUrl || buttons.length > 3)) {
-            let waText = text;
-            buttons.forEach(btn => {
-              if (btn.type === 'web_url') {
-                waText += `\n\n👉 ${btn.title}: ${btn.url}`;
-              } else {
-                waText += `\n\n🔹 ${btn.title}`;
-              }
-            });
-            sendResult = await sendWhatsAppMessage(waPhoneId, waToken, waTo, waText);
+            if (buttons.length === 1 && buttons[0].type === 'web_url') {
+              const waCtaPayload = {
+                type: "interactive",
+                interactive: {
+                  type: "cta_url",
+                  body: { text: text || "Select an option:" },
+                  action: {
+                    name: "cta_url",
+                    parameters: {
+                      display_text: buttons[0].title.replace(/🎁\s*/g, '').substring(0, 20),
+                      url: buttons[0].url
+                    }
+                  }
+                }
+              };
+              sendResult = await sendWhatsAppMessage(waPhoneId, waToken, waTo, waCtaPayload);
+            } else {
+              let waText = text;
+              buttons.forEach(btn => {
+                if (btn.type === 'web_url') {
+                  waText += `\n\n👉 ${btn.title}: ${btn.url}`;
+                } else {
+                  waText += `\n\n🔹 ${btn.title}`;
+                }
+              });
+              sendResult = await sendWhatsAppMessage(waPhoneId, waToken, waTo, waText);
+            }
           } else {
             sendResult = await sendWhatsAppMessage(waPhoneId, waToken, waTo, payload);
           }
