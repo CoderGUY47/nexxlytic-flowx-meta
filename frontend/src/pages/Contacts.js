@@ -70,9 +70,19 @@ export default function Contacts() {
         <div style={{ ...card, borderColor: 'rgba(0,212,255,0.3)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><label style={{ fontSize: 11, color: '#888' }}>Name *</label><input style={inp} placeholder="Contact name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-            <div><label style={{ fontSize: 11, color: '#888' }}>Phone</label><input style={inp} placeholder="+923001234567" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+            <div>
+              <label style={{ fontSize: 11, color: '#888' }}>
+                {form.platform === 'whatsapp' ? 'Phone *' : form.platform === 'instagram' ? 'Instagram Username or Scoped ID *' : 'Facebook Scoped ID *'}
+              </label>
+              <input 
+                style={inp} 
+                placeholder={form.platform === 'whatsapp' ? "+8801863272373" : form.platform === 'instagram' ? "@username or ID" : "Facebook User ID"} 
+                value={form.phone} 
+                onChange={e => setForm({ ...form, phone: e.target.value })} 
+              />
+            </div>
             <div><label style={{ fontSize: 11, color: '#888' }}>Platform</label>
-              <select style={inp} value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })}>
+              <select style={inp} value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value, phone: '' })}>
                 <option value="whatsapp">WhatsApp</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option>
               </select>
             </div>

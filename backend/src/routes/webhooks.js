@@ -42,7 +42,7 @@ router.post("/whatsapp", async (req, res) => {
     const from = msg.from;
     const messageText = msg.text?.body || msg.interactive?.button_reply?.title || "";
     const payload = msg.interactive?.button_reply?.id || null;
-    
+
     if (!from || (!messageText && !payload)) {
       return res.sendStatus(200);
     }
@@ -195,7 +195,8 @@ router.post("/whatsapp", async (req, res) => {
     */
     if (payload === "CLAUDE_SEND_ACCESS" || messageText.toLowerCase().trim() === "send me the access") {
       console.log("🎯 Triggering Step 3 of WhatsApp Claude flow directly (bypassing follow)");
-      const step3Text = `Hey servent of lord shyam 👋
+      const cleanName = contact.name ? contact.name.replace(/\s*\(WhatsApp\)/i, "").replace(/\s*\(Instagram\)/i, "").replace(/^User\s+\d+.*$/, "there") : "there";
+      const step3Text = `Hey ${cleanName}, glad you messaged us. Wait for our reply,
 Gen AI Workshop - absolutely FREE! 🚀
 
 📂 Here is your Demo Drive Link Access:
@@ -215,7 +216,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
           { headers: { Authorization: `Bearer ${client.wa_access_token}`, "Content-Type": "application/json" } }
         );
       } catch (err) {
-        console.log("⚠️ Meta WA API failed (simulating reply text):");
+        console.log("⚠️ Meta WA API failed (simulating reply text):", err.response?.data || err.message);
       }
 
       const step3DisplayPayload = {
@@ -225,7 +226,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
             template_type: "generic",
             elements: [
               {
-                title: "Hey servent of lord shyam 👋 Gen AI Workshop - absolutely FREE! 🚀",
+                title: `Hey ${cleanName}, glad you messaged us. Wait for our reply, Gen AI Workshop - FREE! 🚀`,
                 subtitle: "Cost: ₹0 (FREE!) · 25+ Powerful AI Tools · Become an Excel Pro ✅",
                 buttons: [
                   {
@@ -261,7 +262,8 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
 
     if (payload === "CLAUDE_FOLLOWING_CONFIRMED" || messageText.toLowerCase().trim() === "i'm following ✅") {
       console.log("🎯 Triggering Step 3 of WhatsApp Claude flow");
-      const step3Text = `Hey servent of lord shyam 👋
+      const cleanName = contact.name ? contact.name.replace(/\s*\(WhatsApp\)/i, "").replace(/\s*\(Instagram\)/i, "").replace(/^User\s+\d+.*$/, "there") : "there";
+      const step3Text = `Hey ${cleanName}, glad you messaged us. Wait for our reply,
 Gen AI Workshop - absolutely FREE! 🚀
 
 📂 Here is your Demo Drive Link Access:
@@ -281,7 +283,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
           { headers: { Authorization: `Bearer ${client.wa_access_token}`, "Content-Type": "application/json" } }
         );
       } catch (err) {
-        console.log("⚠️ Meta WA API failed (simulating reply text):");
+        console.log("⚠️ Meta WA API failed (simulating reply text):", err.response?.data || err.message);
       }
 
       const step3DisplayPayload = {
@@ -291,7 +293,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
             template_type: "generic",
             elements: [
               {
-                title: "Hey servent of lord shyam 👋 Gen AI Workshop - absolutely FREE! 🚀",
+                title: `Hey ${cleanName}, glad you messaged us. Wait for our reply, Gen AI Workshop - FREE! 🚀`,
                 subtitle: "Cost: ₹0 (FREE!) · 25+ Powerful AI Tools · Become an Excel Pro ✅",
                 buttons: [
                   {
@@ -365,7 +367,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
         );
         console.log("✅ WhatsApp auto-reply sent:", matchedKeyword.keyword);
       } catch (err) {
-        console.log("⚠️ Meta WA API failed (token expired/invalid). Running simulation fallback:");
+        console.log("⚠️ Meta WA API failed (token expired/invalid). Running simulation fallback:", err.response?.data || err.message);
         console.log(`💬 TO: ${from} | REPLY: "${matchedKeyword.reply_text}"`);
       }
       await db.execute("UPDATE keywords SET hit_count = hit_count + 1 WHERE id = ?", [matchedKeyword.id]);
@@ -393,7 +395,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
       console.log("🤖 No keyword or flow matched. Generating AI reply...");
       const { generateReply } = require("./ai");
       const replyText = await generateReply(messageText, client.business_name || client.name, "hinglish");
-      
+
       if (replyText) {
         try {
           await axios.post(
@@ -403,7 +405,7 @@ Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
           );
           console.log("✅ WhatsApp AI auto-reply sent:", replyText);
         } catch (err) {
-          console.log("⚠️ Meta WA API failed (token expired/invalid). Running simulation fallback for AI:");
+          console.log("⚠️ Meta WA API failed (token expired/invalid). Running simulation fallback for AI:", err.response?.data || err.message);
           console.log(`💬 TO: ${from} | AI REPLY: "${replyText}"`);
         }
 

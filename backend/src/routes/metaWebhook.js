@@ -635,7 +635,10 @@ router.post("/", async (req, res) => {
 
       if (payload === "CLAUDE_FOLLOWING_CONFIRMED" || messageText.toLowerCase().trim() === "i'm following ✅") {
         console.log("🎯 Triggering Step 3 of Claude flow");
-        const step3Text = `Hey servent of lord shyam 👋
+        const [[contact]] = await db.execute("SELECT name FROM contacts WHERE id = ?", [contactId]);
+        const cleanName = contact && contact.name ? contact.name.replace(/\s*\(WhatsApp\)/i, "").replace(/\s*\(Instagram\)/i, "").replace(/^User\s+\d+.*$/, "there") : "there";
+
+        const step3Text = `Hey ${cleanName}, glad you messaged us. Wait for our reply,
 Gen AI Workshop - absolutely FREE! 🚀
 
 📂 Here is your Demo Drive Link Access:
@@ -648,24 +651,51 @@ What you'll learn:
 
 Reply karo apna WhatsApp number (e.g. 8801882652756) to get more updates!`;
 
+        const step3Payload = {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "generic",
+              elements: [
+                {
+                  title: `Hey ${cleanName}, glad you messaged us. Wait for our reply, Gen AI Workshop - FREE! 🚀`,
+                  subtitle: "Cost: ₹0 (FREE!) · 25+ Powerful AI Tools · Become an Excel Pro ✅",
+                  buttons: [
+                    {
+                      type: "web_url",
+                      url: "https://docs.google.com/document/d/1R7EzaFhkDRRmRPQI-cioTi-Q8MTQvx0ltP-YrrhyG7k/edit?usp=sharing",
+                      title: "🎁 Get Drive Access"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        };
+
         try {
-          await sendInstagramMessage(senderId, step3Text, client.fb_page_token);
+          await sendInstagramMessage(senderId, step3Payload, client.fb_page_token);
         } catch (err) {
-          console.log("⚠️ Meta API DM failed (simulating reply DM):");
-          console.log(`💬 DM TO: ${senderId} | "${step3Text}"`);
+          console.log("⚠️ Meta API DM template failed. Falling back to text:", err.message);
+          try {
+            await sendInstagramMessage(senderId, step3Text, client.fb_page_token);
+          } catch (e2) {
+            console.log("⚠️ Meta API DM fallback text also failed:", e2.message);
+          }
         }
 
+        const displayContent = JSON.stringify(step3Payload);
         await db.execute(
           `INSERT INTO messages (id, client_id, contact_id, direction, platform, content)
            VALUES (UUID(), ?, ?, 'outbound', 'instagram', ?)`,
-          [client.id, contactId, step3Text]
+          [client.id, contactId, displayContent]
         );
 
         if (io) {
           io.to(`client_${client.id}`).emit('new_message', {
             contact_id: contactId,
             contact_name: `Instagram User`,
-            message: step3Text
+            message: displayContent
           });
         }
 
